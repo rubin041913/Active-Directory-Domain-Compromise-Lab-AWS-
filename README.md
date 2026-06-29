@@ -4,7 +4,7 @@
 
 This project demonstrates a full Active Directory domain compromise conducted in a controlled AWS-based lab environment.
 
-Starting from a low-privileged domain user, I performed enumeration, credential discovery, lateral movement, and privilege escalation, ultimately achieving Domain Administrator-level access and full domain compromise.
+Starting from a low-privileged domain user, I performed enumeration, credential discovery, lateral movement, and privilege escalation, ultimately achieving Domain Administrator-level access and demonstrating full domain compromise potential.
 
 This lab simulates real-world enterprise attack paths used in internal penetration tests and red team engagements.
 
@@ -34,7 +34,7 @@ This is the flow of compromise:
 6. Remote command execution (psexec / wmiexec)
 7. Privilege escalation to SYSTEM
 8. Domain credential extraction (secretsdump)
-9. Full Active Directory compromise
+9. Full Active Directory compromise potential demonstrated
 
 ---
 
@@ -96,15 +96,15 @@ Using secretsdump.py, I extracted:
 
 ---
 
-## 💥 Final Result: Full Domain Compromise
+## 💥 Final Result: Domain Compromise Demonstrated
 
-This attack resulted in:
+This attack demonstrated:
 
-* Complete Domain Administrator access
+* Domain Administrator-level access capability
 * Extraction of all domain credentials
 * Compromise of Kerberos authentication trust (krbtgt)
-* Ability to perform Pass-the-Hash and Golden Ticket attacks
-* Full control over the Active Directory environment
+* Potential for Pass-the-Hash and Golden Ticket attacks
+* Capability for persistent domain-level access
 
 ---
 
@@ -112,7 +112,7 @@ This attack resulted in:
 
 This lab demonstrates how:
 
-* A single misconfigured service account can lead to total domain compromise
+* A single misconfigured service account can lead to domain-wide compromise risk
 * Excessive privileges in service accounts create critical attack paths
 * Lack of monitoring enables lateral movement and escalation
 * Active Directory environments require strict privilege separation
@@ -151,7 +151,7 @@ C:\>whoami /groups
 CORP\Domain Admins                   Group         S-1-21-638...        Mandatory group, Enabled
 ```
 
-**Key Finding:** sql_svc confirmed as member of Domain Admins - critical vulnerability identified.
+**Key Finding:** sql_svc confirmed as member of Domain Admins - critical privilege escalation point identified.
 
 ---
 
@@ -168,7 +168,7 @@ Valid starting       Expires              Service principal
 06/28/26 12:58:59   06/28/26 22:58:59    krbtgt/CORP.LOCAL@CORP.LOCAL
 ```
 
-**Impact:** Valid Kerberos authentication established. Attacker can now interact with domain services.
+**Impact:** Valid Kerberos authentication established. Domain service access enabled.
 
 ---
 
@@ -183,7 +183,7 @@ ServicePrincipalName                 Name       MemberOf
 MSSQLSvc/sqlserver.corp.local:1433   sql_svc    CN=Domain Admins,CN=Users,DC=corp,DC=local
 ```
 
-**Critical Vulnerability:** Service account sql_svc identified with excessive privileges (Domain Admins membership). Direct path to full domain compromise.
+**Critical Vulnerability:** Service account sql_svc identified with excessive privileges (Domain Admins membership). Creates direct path to domain compromise.
 
 ---
 
@@ -201,7 +201,7 @@ C:\>whoami
 corp\sql_svc
 ```
 
-**Result:** Semi-interactive shell established with Domain Admins privileges. Full lateral movement capability achieved.
+**Result:** Remote code execution achieved with Domain Admins privileges via WMI lateral movement.
 
 ---
 
@@ -219,7 +219,7 @@ Administrator     Jadmin         sql_svc
 The command completed successfully.
 ```
 
-**Security Issue:** Confirms service account (sql_svc) membership in Domain Admins. Overprivilege condition verified.
+**Security Issue:** Service account membership in Domain Admins confirmed. Overprivilege condition enables domain-wide escalation.
 
 ---
 
@@ -232,15 +232,16 @@ Impacket v0.14.0.dev0
 
 [*] Target system bootKey: 0x8dc1f3d7d34256a6b8db8d196d8aaaa8
 [*] Dumping local SAM hashes
-Administrator:500:aad3b435b51404eeaad3b435b51404ee:2b576acbe6bcfda7294d6bd18041b8fe:::
 [*] Dumping LSA Secrets
-[*] $MACHINE.ACC
-[*] DPAPI_SYSTEM
-[*] Dumping Domain Credentials (domain\uid:rid:lmhash:nthash)
+[*] Dumping Domain Credentials
 [*] Using the DRSUAPI method to get NTDS.DIT secrets
 ```
 
-**Result:** Credential extraction in progress. All domain hashes now accessible.
+**Key Findings:**
+- SAM hashes successfully extracted from local system
+- LSA secrets (encryption keys, DPAPI) compromised
+- DRSUAPI method enabled NTDS database access
+- Domain credential extraction initiated
 
 ---
 
@@ -253,86 +254,86 @@ krbtgt:aes256-cts-hmac-sha1-96:a01e82913d40ec80fbbf0375ee087924da27aa77e0ea7cfe8
 krbtgt:aes128-cts-hmac-sha1-96:39655377a50d1140853568aaf7b6b076
 ```
 
-**CRITICAL FINDING:** krbtgt hash (Kerberos master key) extracted. This enables:
-- Golden Ticket creation
-- 10-year ticket validity
-- Complete domain persistence
-- Bypass of all authentication
+**CRITICAL FINDING:** krbtgt hash (Kerberos master key) obtained. Enables:
+- Golden Ticket creation capability
+- Extended ticket validity (10+ years potential)
+- Long-term domain persistence potential
+- Authentication bypass capability
 
 ---
 
 ### Screenshot 8: All Domain User Credentials Extracted
-**Caption: Complete domain credential dump - all users and machine accounts compromised**
+**Caption: Complete domain credential dump - all users and machine accounts extracted**
 
-```
-Administrator:500:aad3b435b51404eeaad3b435b51404ee:1ccf2f40949c60dd8f9009662f78eacfc:::
-corp.local\jsmith:1103:aad3b435b51404eeaad3b435b51404ee:2b576acbe6bcfda7294d6bd18041b8fe:::
-corp.local\Jadmin:1104:aad3b435b51404eeaad3b435b51404ee:ccad9cd271d517d14d195b0ca33173a1e:::
-corp.local\sql_svc:1105:aad3b435b51404eeaad3b435b51404ee:5fdfca9e1a4c180e101b353233301f9b9:::
-EC2AMAZ-J75C1G4$:1000:aad3b435b51404eeaad3b435b51404ee:2d19d2dd270245e6be4111ff3b64b495:::
+**Key Findings:**
+- Administrator NTLM hash: `2b576acbe6bcfda7294d6bd18041b8fe`
+- Domain user jsmith hash: `2b576acbe6bcfda7294d6bd18041b8fe`
+- Domain admin Jadmin hash: `ccad9cd271d517d14d195b0ca33173a1e`
+- Service account sql_svc hash: `5fdfca9e1a4c180e101b353233301f9b9`
+- Machine account EC2AMAZ-J75C1G4$ hash: `2d19d2dd270245e6be4111ff3b64b495`
+- All Kerberos keys extracted (AES-256, AES-128, DES-CBC-MD5)
 
-[*] Kerberos keys grabbed
-[*] Cleaning up...
-```
-
-**Result:** All domain user credentials compromised - jsmith, Jadmin, sql_svc, and machine accounts.
+**Result:** Complete credential compromise across all domain entities. Pass-the-Hash attack surface maximized.
 
 ---
 
-### Screenshot 9: Complete Domain Compromise Achieved
-**Caption: Complete secretsdump extraction showing full domain compromise with all encryption keys**
+### Screenshot 9: Complete Domain Compromise Confirmed
+**Caption: Complete secretsdump extraction showing full domain compromise capability**
 
-```
-[*] Target system bootKey: 0x8dc1f3d7d34256a6b8db8d196d8aaaa8
-[*] Dumping local SAM hashes
-[*] Dumping cached domain logon information
-[*] Dumping LSA Secrets
-[*] $MACHINE.ACC
-[*] DPAPI_SYSTEM
-[*] NL$KM
-[*] Dumping Domain Credentials
+**Key Findings:**
+- ✅ All local SAM credentials extracted
+- ✅ LSA secrets and DPAPI keys compromised
+- ✅ NL$KM (cached credential keys) obtained
+- ✅ All domain user credentials extracted
+- ✅ Administrator credentials compromised
+- ✅ krbtgt (Kerberos master key) obtained
+- ✅ All machine account credentials extracted
+- ✅ Complete Kerberos encryption keys obtained
 
-Administrator:aes256-cts-hmac-sha1-96:7be3a9421d7e686be7e2e592f431599bd1766afc28a08e9e56f7ef446c54347b
-krbtgt:aes256-cts-hmac-sha1-96:a01e82913d40ec80fbbf0375ee087924da27aa77e0ea7cfe83473e68b20e24a8
-corp.local\jsmith:aes256-cts-hmac-sha1-96:059a139842dd8ef29f80e04576864e95b47c7b0820395976a78e8b23a728721229
-corp.local\Jadmin:aes256-cts-hmac-sha1-96:5b6044f2ba59871159d95900016de8feb24bc76f8bdf7e5192cd119f1478685
-corp.local\sql_svc:aes256-cts-hmac-sha1-96:8a6be1a6139bb3cd4634fbc1b7501ac4542c4f1d54694342258a97b4c09a9a3e
-EC2AMAZ-J75C1G4$:aes256-cts-hmac-sha1-96:e6d4840236dfe9c9495e53f374b8788ad6486578a66f087713b182789937bf94
-
-[*] Kerberos keys grabbed
-[*] Cleaning up...
-```
-
-**COMPLETE DOMAIN COMPROMISE ACHIEVED:**
-- ✅ All user hashes extracted (Administrator, jsmith, Jadmin, sql_svc)
-- ✅ All machine account hashes extracted
-- ✅ krbtgt hash obtained (10-year Golden Ticket capability)
-- ✅ All Kerberos keys extracted (AES-256, AES-128, DES-CBC-MD5)
-- ✅ DPAPI keys compromised
-- ✅ Full persistent access achieved
+**Domain Compromise Capability Confirmed:**
+This data extraction demonstrates potential for complete domain takeover through multiple attack vectors (Golden Tickets, Pass-the-Hash, credential reuse, privilege delegation).
 
 ---
 
 ## 💥 Executive Impact Summary
 
-This single misconfiguration (overprivileged service account) resulted in:
+This single misconfiguration (overprivileged service account) created potential for:
 
-* **Full Active Directory domain compromise** - Complete control over all domain resources
-* **Extraction of all user credentials** - Every domain user password hash obtained
-* **Compromise of Kerberos authentication system (krbtgt)** - Master key extracted
-* **Ability to forge authentication tickets (Golden Tickets)** - Create valid tickets for any user, any time
-* **Persistent, undetectable domain-level access** - 10-year ticket validity with no password required
+* **Domain Administrator-level access** - Capability to control all domain resources
+* **Complete credential compromise** - Access to all domain user password hashes
+* **Kerberos authentication system compromise** - Master key (krbtgt) obtained
+* **Long-term persistence capability** - Golden Ticket creation potential with extended validity
+* **Enterprise-wide security impact** - All domain systems at risk from compromised credentials
 
-**Key Insight:** This demonstrates how a single compromised service account can lead to enterprise-wide takeover. The attack required no zero-days, no exploits—only misconfigurations that exist in real organizations today.
+**Key Insight:** This demonstrates how a single misconfigured service account, combined with common Active Directory configurations, can create an enterprise-wide security risk. The attack required no zero-days or sophisticated exploits—only an understanding of Active Directory architecture and common misconfigurations found in real organizations.
+
+---
+
+## 🔍 Detection Opportunities (Blue Team Perspective)
+
+This attack could be detected using:
+
+* **Kerberos event monitoring** - Event ID 4769 (TGS request) and 4768 (TGT request) anomalies indicate Kerberoasting attempts
+* **Suspicious SPN ticket requests** - Multiple TGS requests for service accounts indicate ticket-granting patterns
+* **Unusual service account logins** - sql_svc lateral movement to multiple systems in short timeframe
+* **LSASS access detection** - Secretsdump attempts access LSASS for credential extraction (detectable via Sysmon Event ID 10)
+* **Admin share usage** - ADMIN$ share writes and remote service creation events indicate psexec/wmiexec execution
+* **Abnormal authentication patterns** - Service account authenticating from unexpected source IPs
+* **Credential access patterns** - Unusual access to NTDS.DIT or LSA secrets via DRSUAPI
+
+**SIEM Correlation Opportunity:** A SIEM solution monitoring multiple events (Kerberos 4769, unusual logon types, service creation, LSASS access) would likely detect multiple stages of this attack chain, enabling early intervention.
+
+**Key Defensive Insight:** While this attack chain is difficult to prevent entirely, multi-stage detection at the enumeration, lateral movement, and credential access phases would allow defenders to interrupt the attack before full compromise.
 
 ---
 
 ## 🎯 Key Takeaways
 
-* Active Directory misconfigurations are high-impact attack vectors
-* Service accounts are frequently overlooked but highly valuable
-* Lateral movement is often easier than initial access
-* Proper segmentation and least privilege could have prevented full compromise
+* Active Directory misconfigurations create high-impact attack vectors
+* Service accounts are frequently overlooked but represent critical security risks
+* Lateral movement is often easier than initial access—focus defenses here
+* Privilege separation and monitoring are essential for enterprise security
+* Attack detection requires understanding both attacker and defender perspectives
 
 ---
 
