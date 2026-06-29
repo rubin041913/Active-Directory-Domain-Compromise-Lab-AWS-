@@ -4,7 +4,7 @@
 
 This project demonstrates a full Active Directory domain compromise conducted in a controlled AWS-based lab environment.
 
-Starting from a low-privileged domain user, I performed enumeration, credential discovery, lateral movement, and privilege escalation, ultimately achieving Domain Administrator-level access and demonstrating full domain compromise potential.
+Starting from a low-privileged domain user, I performed enumeration, credential discovery, lateral movement, and privilege escalation, ultimately achieving Domain Administrator-level access and demonstrating domain compromise capability.
 
 This lab simulates real-world enterprise attack paths used in internal penetration tests and red team engagements.
 
@@ -22,6 +22,16 @@ This lab simulates real-world enterprise attack paths used in internal penetrati
 
 ---
 
+## 📏 Scope & Assumptions
+
+* This lab was conducted in an isolated AWS environment
+* No production systems were involved
+* All actions were performed in an authorized testing environment
+* Objectives were limited to Active Directory compromise simulation
+* All data and systems were contained within the lab scope
+
+---
+
 ## 🧭 Attack Chain (MOST IMPORTANT SECTION)
 
 This is the flow of compromise:
@@ -34,7 +44,7 @@ This is the flow of compromise:
 6. Remote command execution (psexec / wmiexec)
 7. Privilege escalation to SYSTEM
 8. Domain credential extraction (secretsdump)
-9. Full Active Directory compromise potential demonstrated
+9. Full Active Directory compromise demonstrated
 
 ---
 
@@ -98,13 +108,13 @@ Using secretsdump.py, I extracted:
 
 ## 💥 Final Result: Domain Compromise Demonstrated
 
-This attack demonstrated:
+This attack demonstrated capability for:
 
-* Domain Administrator-level access capability
+* Domain Administrator-level access
 * Extraction of all domain credentials
 * Compromise of Kerberos authentication trust (krbtgt)
-* Potential for Pass-the-Hash and Golden Ticket attacks
-* Capability for persistent domain-level access
+* Pass-the-Hash and Golden Ticket attack potential
+* Long-term domain persistence
 
 ---
 
@@ -112,7 +122,7 @@ This attack demonstrated:
 
 This lab demonstrates how:
 
-* A single misconfigured service account can lead to domain-wide compromise risk
+* A single misconfigured service account can create domain-wide compromise risk
 * Excessive privileges in service accounts create critical attack paths
 * Lack of monitoring enables lateral movement and escalation
 * Active Directory environments require strict privilege separation
@@ -257,23 +267,28 @@ krbtgt:aes128-cts-hmac-sha1-96:39655377a50d1140853568aaf7b6b076
 **CRITICAL FINDING:** krbtgt hash (Kerberos master key) obtained. Enables:
 - Golden Ticket creation capability
 - Extended ticket validity (10+ years potential)
-- Long-term domain persistence potential
+- Long-term domain persistence capability
 - Authentication bypass capability
 
 ---
 
-### Screenshot 8: All Domain User Credentials Extracted
+### Screenshot 8: Domain Credentials Extracted
 **Caption: Complete domain credential dump - all users and machine accounts extracted**
 
-**Key Findings:**
-- Administrator NTLM hash: `2b576acbe6bcfda7294d6bd18041b8fe`
-- Domain user jsmith hash: `2b576acbe6bcfda7294d6bd18041b8fe`
-- Domain admin Jadmin hash: `ccad9cd271d517d14d195b0ca33173a1e`
-- Service account sql_svc hash: `5fdfca9e1a4c180e101b353233301f9b9`
-- Machine account EC2AMAZ-J75C1G4$ hash: `2d19d2dd270245e6be4111ff3b64b495`
-- All Kerberos keys extracted (AES-256, AES-128, DES-CBC-MD5)
+#### Key Credentials Extracted:
+- Administrator (Domain Admin)
+- Domain Admin (Jadmin)
+- Service account (sql_svc)
+- Machine account (EC2AMAZ-J75C1G4$)
+- All domain users (jsmith, etc.)
 
-**Result:** Complete credential compromise across all domain entities. Pass-the-Hash attack surface maximized.
+#### Security Impact:
+- **Pass-the-Hash attacks** - NTLM hashes enable authentication without passwords
+- **Privilege reuse** - Domain Admin credentials enable full domain control
+- **Credential persistence** - Hashes can be used indefinitely
+- **Service account lateral movement** - sql_svc hash enables movement across domain
+
+**Result:** Comprehensive credential compromise across all domain entities.
 
 ---
 
@@ -291,15 +306,15 @@ krbtgt:aes128-cts-hmac-sha1-96:39655377a50d1140853568aaf7b6b076
 - ✅ Complete Kerberos encryption keys obtained
 
 **Domain Compromise Capability Confirmed:**
-This data extraction demonstrates potential for complete domain takeover through multiple attack vectors (Golden Tickets, Pass-the-Hash, credential reuse, privilege delegation).
+This data extraction demonstrates capability for complete domain takeover through multiple attack vectors (Golden Tickets, Pass-the-Hash, credential reuse, privilege delegation).
 
 ---
 
 ## 💥 Executive Impact Summary
 
-This single misconfiguration (overprivileged service account) created potential for:
+This single misconfiguration (overprivileged service account) created capability for:
 
-* **Domain Administrator-level access** - Capability to control all domain resources
+* **Domain Administrator-level access** - Potential to control all domain resources
 * **Complete credential compromise** - Access to all domain user password hashes
 * **Kerberos authentication system compromise** - Master key (krbtgt) obtained
 * **Long-term persistence capability** - Golden Ticket creation potential with extended validity
