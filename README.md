@@ -342,6 +342,35 @@ This attack could be detected using:
 
 ---
 
+## 🧩 MITRE ATT&CK Mapping
+
+This attack chain aligns with known MITRE ATT&CK techniques:
+
+### Discovery
+- **T1018** – Remote System Discovery (network enumeration)
+- **T1087** – Account Discovery (domain user enumeration)
+
+### Credential Access
+- **T1558.003** – Kerberoasting (SPN-based service account targeting)
+- **T1003** – OS Credential Dumping (secretsdump, SAM/LSA extraction)
+
+### Lateral Movement
+- **T1021.002** – SMB/Windows Admin Shares (psexec / ADMIN$)
+- **T1021.006** – Windows Remote Management (wmiexec / WMI execution)
+
+### Privilege Escalation
+- **T1078** – Valid Accounts (use of sql_svc domain credentials)
+- **T1484.001** – Group Policy Modification (Domain Admin membership impact)
+
+### Persistence (Potential)
+- **T1558.001** – Golden Ticket (krbtgt compromise enables forged tickets)
+
+### Impact
+- **T1489** – Data Encrypted for Impact (domain-wide credential compromise)
+- **T1588** – Obtain Capabilities (full credential and key extraction)
+
+---
+
 ## 🎯 Key Takeaways
 
 * Active Directory misconfigurations create high-impact attack vectors
