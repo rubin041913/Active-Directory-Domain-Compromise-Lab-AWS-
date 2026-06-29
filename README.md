@@ -32,7 +32,7 @@ This lab simulates real-world enterprise attack paths used in internal penetrati
 
 ---
 
-## 🧭 Attack Chain (MOST IMPORTANT SECTION)
+## 🧭 Attack Chain 
 
 This is the flow of compromise:
 
